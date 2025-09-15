@@ -1,0 +1,46 @@
+name: CI
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  tests:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python-version: ["3.10", "3.11", "3.12"]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+      - name: Install test deps
+        run: |
+          python -m pip install --upgrade pip
+          pip install pytest
+      - name: Run fast tests (skip perf & concurrency)
+        run: |
+          pytest -q -m "not perf and not concurrency"
+
+  perf_and_concurrency:
+    if: github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install test deps
+        run: |
+          python -m pip install --upgrade pip
+          pip install pytest
+      - name: Run perf + concurrency tests
+        env:
+          PERF_N: "10000"
+          PERF_MAX_SEC: "15.0"
+          CONC_WRITERS: "8"
+          CONC_VERTS: "5000"
+          CONC_EDGES_PER_WRITER: "4000"
+        run: |
+          pytest -q -m "perf or concurrency"
